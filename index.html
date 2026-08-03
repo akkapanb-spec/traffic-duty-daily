@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบการปฏิบัติหน้าที่จราจรประจำวัน</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --ink: #14243F;
+      --ink-soft: #2C3E5C;
+      --signal: #E8A33D;
+      --surface: #F1F4F9;
+      --line: #DDE3EC;
+      --ok: #1F8A5B;
+      --leave: #C4453B;
+      --official: #2E5EAA;
+      --rest: #C98A16;
+    }
+
+    body {
+      font-family: 'Sarabun', system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--ink);
+      padding-bottom: 56px;
+    }
+
+    /* ---------------- หัวเรื่อง ---------------- */
+    .topbar { background: var(--ink); color: #fff; padding: 16px 0 20px; position: relative; }
+    .topbar::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+      background: repeating-linear-gradient(115deg, var(--signal) 0 14px, var(--ink) 14px 28px);
+    }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand img {
+      width: 54px; height: 54px; border-radius: 50%; background: #fff;
+      object-fit: contain; padding: 3px; box-shadow: 0 0 0 2px var(--signal); flex: 0 0 auto;
+    }
+    .brand h1 { font-size: 1.04rem; font-weight: 700; margin: 0; line-height: 1.3; }
+    .brand p { margin: 2px 0 0; font-size: .74rem; color: #A9B8D0; }
+
+    /* ---------------- แถบสถานะ ---------------- */
+    .strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+    .strip .item {
+      background: #fff; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px;
+    }
+    .strip .k { font-size: .68rem; color: #7A879B; }
+    .strip .v { font-size: .86rem; font-weight: 600; margin-top: 1px; }
+
+    /* ---------------- การ์ด ---------------- */
+    .card-panel {
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 18px; margin-top: 14px; box-shadow: 0 1px 2px rgba(20,36,63,.04);
+    }
+    .card-panel.accent { border-top: 3px solid var(--signal); }
+    .panel-title {
+      font-size: .93rem; font-weight: 600; margin: 0 0 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title i { color: var(--signal); }
+    .panel-title .sub { font-size: .72rem; color: #7A879B; font-weight: 400; margin-left: auto; }
+
+    /* ---------------- ปฏิทิน ---------------- */
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cal-head .month { font-weight: 700; font-size: .96rem; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal-dow { text-align: center; font-size: .68rem; color: #7A879B; font-weight: 600; padding: 3px 0; }
+    .cal-cell {
+      min-height: 58px; border: 1px solid var(--line); border-radius: 7px;
+      padding: 3px 4px; background: #fff; cursor: pointer; transition: .12s;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .cal-cell.empty { border: 0; background: transparent; cursor: default; }
+    .cal-cell:hover:not(.empty) { border-color: var(--signal); }
+    .cal-cell.today { border-color: var(--ink); border-width: 2px; }
+    .cal-cell.selected { background: #FFF6E4; border-color: var(--signal); }
+    .cal-cell.holiday { background: #FCF3F2; }
+    .cal-cell .d { font-size: .76rem; font-weight: 700; }
+    .cal-cell .d small { font-weight: 400; color: #B04A42; font-size: .56rem; display: block; }
+    .cal-cell .pill {
+      font-size: .58rem; border-radius: 4px; padding: 1px 4px; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pill-leave { background: var(--leave); }
+    .pill-official { background: var(--official); }
+    .pill-rest { background: var(--rest); }
+
+    .legend { display: flex; gap: 12px; font-size: .72rem; margin-top: 10px; flex-wrap: wrap; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    .day-detail {
+      background: #FBFCFE; border: 1px solid var(--line); border-radius: 10px;
+      padding: 11px; margin-top: 11px; font-size: .8rem;
+    }
+
+    /* ---------------- กล่องเตือน 5 อันดับ ---------------- */
+    .top5 {
+      background: linear-gradient(135deg, #FFF6E4, #FFFBF2);
+      border: 1px solid #F0D9A8; border-radius: 14px; padding: 16px; margin-top: 14px;
+    }
+    .top5 h3 {
+      font-size: .9rem; font-weight: 700; margin: 0 0 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .top5 ol { margin: 0; padding-left: 0; list-style: none; }
+    .top5 li {
+      display: flex; align-items: center; gap: 10px; padding: 6px 0;
+      border-bottom: 1px dashed #EBD9B8; font-size: .82rem;
+    }
+    .top5 li:last-child { border-bottom: 0; }
+    .rank {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff;
+      font-size: .68rem; font-weight: 700; display: flex; align-items: center;
+      justify-content: center; flex: 0 0 auto;
+    }
+    .rank.r1 { background: #C4453B; } .rank.r2 { background: #D8942F; } .rank.r3 { background: #C98A16; }
+    .bar-wrap { flex: 1; height: 7px; background: #F0E4CC; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--signal); }
+
+    /* ---------------- ตาราง ---------------- */
+    .table-sm td, .table-sm th { font-size: .79rem; vertical-align: middle; }
+    .badge-leave { background: var(--leave); }
+    .badge-official { background: var(--official); }
+    .badge-rest { background: var(--rest); }
+
+    .report-box {
+      background: var(--ink); color: #E8EEF8; border-radius: 12px; padding: 15px;
+      font-size: .8rem; line-height: 1.72; white-space: pre-wrap; word-break: break-word;
+      max-height: 58vh; overflow-y: auto;
+    }
+
+    .dropzone {
+      border: 1px dashed var(--line); border-radius: 9px; padding: 10px 12px;
+      background: #FBFCFE; cursor: pointer; transition: .15s;
+      display: flex; align-items: center; gap: 10px; text-align: left;
+    }
+    .dropzone:hover { border-color: var(--signal); background: #FFFCF5; }
+    .dropzone.dragging { border-color: var(--signal); background: #FFF6E4; }
+    .dropzone.has-file { border-style: solid; border-color: var(--ok); background: #F3FAF6; }
+    .dropzone i.bi-cloud-arrow-up { font-size: 1.15rem; color: var(--ink-soft); flex: 0 0 auto; }
+    .dropzone .hint { font-size: .7rem; color: #7A879B; }
+    .dropzone .main { font-size: .82rem; font-weight: 600; }
+    .file-chip {
+      display: inline-flex; align-items: center; gap: 8px; background: #fff;
+      border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px;
+      font-size: .82rem; margin-top: 9px;
+    }
+
+    .btn-signal { background: var(--signal); border-color: var(--signal); color: #14243F; font-weight: 600; }
+    .btn-signal:hover { background: #D8942F; border-color: #D8942F; color: #14243F; }
+    .btn-ink { background: var(--ink); border-color: var(--ink); color: #fff; }
+    .btn-ink:hover { background: var(--ink-soft); border-color: var(--ink-soft); color: #fff; }
+
+    .type-toggle { display: flex; gap: 8px; }
+    .type-toggle label {
+      flex: 1; text-align: center; padding: 9px; border: 1px solid var(--line);
+      border-radius: 9px; cursor: pointer; font-size: .84rem; font-weight: 600; transition: .12s;
+    }
+    .type-toggle input { display: none; }
+    .type-toggle input:checked + label { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    .form-label { font-size: .8rem; font-weight: 600; margin-bottom: 3px; }
+    .form-text { font-size: .73rem; }
+    .progress { height: 8px; }
+    .badge-soft { background: #EDF1F8; color: var(--ink-soft); font-weight: 500; }
+
+    .chart-box { position: relative; height: 280px; }
+
+    /* ---------------- ภารกิจพิเศษ ---------------- */
+    .mission-stat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .mission-stat .box {
+      border: 1px solid var(--line); border-radius: 11px; padding: 11px; background: #FBFCFE;
+    }
+    .mission-stat .box .period { font-size: .68rem; color: #7A879B; }
+    .mission-stat .box .num { font-size: 1.5rem; font-weight: 700; line-height: 1.15; }
+    .mission-stat .box .range { font-size: .62rem; color: #98A3B3; }
+    .mission-stat .box ul { list-style: none; margin: 7px 0 0; padding: 0; }
+    .mission-stat .box li {
+      display: flex; justify-content: space-between; gap: 6px;
+      font-size: .7rem; padding: 2px 0; border-top: 1px dashed var(--line);
+    }
+    .type-chip {
+      display: inline-block; font-size: .68rem; padding: 1px 7px; border-radius: 999px;
+      background: #EDF1F8; color: var(--ink-soft);
+    }
+    .img-preview { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 7px; }
+    .img-preview .thumb {
+      position: relative; width: 74px; height: 74px; border-radius: 8px;
+      overflow: hidden; border: 1px solid var(--line);
+    }
+    .img-preview .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .img-preview .thumb button {
+      position: absolute; top: 2px; right: 2px; width: 18px; height: 18px;
+      border: 0; border-radius: 50%; background: rgba(196,69,59,.92); color: #fff;
+      font-size: .62rem; line-height: 1; cursor: pointer; padding: 0;
+    }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    @media (max-width: 768px) {
+      .strip { grid-template-columns: repeat(2, 1fr); }
+      .card-panel { padding: 14px; }
+      .cal-cell { min-height: 46px; }
+      .cal-cell .pill { font-size: .5rem; }
+      .brand img { width: 44px; height: 44px; }
+      .brand h1 { font-size: .92rem; }
+      .chart-box { height: 230px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="container" style="max-width:1120px">
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+      <div class="brand">
+        <img src="data:image/png;base64,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" alt="ตำรวจจราจรชอนตะวัน">
+        <div>
+          <h1>ระบบการปฏิบัติหน้าที่จราจรประจำวัน</h1>
+          <p>งานจราจร สภ.เมืองนครสวรรค์</p>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-signal" id="btnViewAll" onclick="showView('all')">
+          <i class="bi bi-bar-chart-line"></i> ข้อมูลการลาทั้งหมด
+        </button>
+        <button class="btn btn-sm btn-outline-light d-none" id="btnViewHome" onclick="showView('home')">
+          <i class="bi bi-house"></i> กลับหน้าแรก
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== หน้าแรก ============================== -->
+<div class="container view active" id="viewHome" style="max-width:1120px">
+
+  <div class="strip" id="statusStrip">
+    <div class="item"><div class="k">กำลังโหลด…</div><div class="v">—</div></div>
+  </div>
+
+  <div class="row g-3 mt-0">
+    <!-- ฟอร์มบันทึก -->
+    <div class="col-lg-5">
+      <div class="card-panel accent" style="margin-top:14px">
+        <p class="panel-title">
+          <i class="bi bi-pencil-square"></i>
+          <span id="formTitle">บันทึกการลาราชการ / ไปราชการ</span>
+        </p>
+
+        <input type="hidden" id="editId">
+
+        <div class="type-toggle mb-3">
+          <input type="radio" name="rtype" id="typeLeave" value="ลาราชการ" checked>
+          <label for="typeLeave"><i class="bi bi-file-earmark-text"></i> ลาราชการ</label>
+          <input type="radio" name="rtype" id="typeOfficial" value="ไปราชการ">
+          <label for="typeOfficial"><i class="bi bi-car-front"></i> ไปราชการ</label>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label" for="personSelect">เจ้าหน้าที่</label>
+          <select class="form-select" id="personSelect" onchange="onPersonChange()">
+            <option value="">— เลือกเจ้าหน้าที่ —</option>
+          </select>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" for="startDate">วันที่เริ่ม</label>
+            <input type="date" class="form-control" id="startDate">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="endDate">ถึงวันที่</label>
+            <input type="date" class="form-control" id="endDate">
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="pointInput">จุดปฏิบัติหน้าที่</label>
+          <input type="text" class="form-control" id="pointInput" placeholder="เว้นว่างจะใช้จุดประจำ">
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="detailInput">รายละเอียด</label>
+          <input type="text" class="form-control" id="detailInput" placeholder="เช่น ลากิจ / อบรม / ประชุม">
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="pinLeave">รหัส PIN ผู้ดูแลระบบ</label>
+          <input type="password" class="form-control" id="pinLeave" inputmode="numeric" autocomplete="off">
+        </div>
+
+        <div class="d-grid gap-2 mt-3">
+          <button class="btn btn-signal" onclick="submitLeave()">
+            <i class="bi bi-shield-check"></i> ตรวจสอบและบันทึก
+          </button>
+          <button class="btn btn-outline-secondary d-none" id="btnCancelEdit" onclick="resetForm()">
+            ยกเลิกการแก้ไข
+          </button>
+        </div>
+
+        <div class="form-text mt-2">
+          <i class="bi bi-info-circle"></i>
+          ระบบตรวจให้ก่อนบันทึกว่าวันนั้นมีใครลาผลัดเดียวกันแล้วบ้าง
+          ติดวันหยุดราชการหรือวันพักของตนเองหรือไม่
+        </div>
+      </div>
+    </div>
+
+    <!-- ปฏิทิน -->
+    <div class="col-lg-7">
+      <div class="card-panel" style="margin-top:14px">
+        <p class="panel-title"><i class="bi bi-calendar3"></i> ปฏิทินการลาราชการและไปราชการ</p>
+
+        <div class="cal-head">
+          <button class="btn btn-sm btn-outline-secondary" onclick="shiftMonth(-1)">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <div class="month" id="calMonth">—</div>
+          <button class="btn btn-sm btn-outline-secondary" onclick="shiftMonth(1)">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="cal-grid" id="calDow"></div>
+        <div class="cal-grid mt-1" id="calGrid">
+          <div class="text-muted small">กำลังโหลด…</div>
+        </div>
+
+        <div class="legend">
+          <span><i style="background:#C4453B"></i> ลาราชการ</span>
+          <span><i style="background:#2E5EAA"></i> ไปราชการ</span>
+          <span><i style="background:#C98A16"></i> เวรพัก</span>
+          <span><i style="background:#FCF3F2;border:1px solid #E4B8B3"></i> วันหยุดราชการ</span>
+          <span><i style="background:#fff;border:2px solid #14243F"></i> วันนี้</span>
+        </div>
+
+        <div class="day-detail d-none" id="dayDetail"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ภารกิจพิเศษ -->
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card-panel accent">
+        <p class="panel-title">
+          <i class="bi bi-megaphone"></i>
+          <span id="missionFormTitle">บันทึกภารกิจพิเศษ</span>
+        </p>
+
+        <input type="hidden" id="missionEditId">
+
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" for="mStart">วันที่เริ่ม</label>
+            <input type="date" class="form-control" id="mStart">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="mEnd">ถึงวันที่</label>
+            <input type="date" class="form-control" id="mEnd">
+          </div>
+        </div>
+
+        <div class="row g-2 mt-0">
+          <div class="col-6">
+            <label class="form-label" for="mTime">เวลา</label>
+            <input type="text" class="form-control" id="mTime" placeholder="เช่น 08.00-12.00 น.">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="mType">ประเภทภารกิจ</label>
+            <select class="form-select" id="mType" onchange="onMissionTypeChange()">
+              <option value="ว.42">ว.42</option>
+              <option value="อำนวยการจราจร">อำนวยการจราจร</option>
+              <option value="เข้าร่วมประชุม">เข้าร่วมประชุม</option>
+              <option value="วิทยากร">วิทยากร</option>
+              <option value="__other__">อื่นๆ (พิมพ์เอง)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-2 d-none" id="mTypeOtherWrap">
+          <label class="form-label" for="mTypeOther">ระบุประเภทภารกิจ</label>
+          <input type="text" class="form-control" id="mTypeOther" placeholder="พิมพ์ชื่อภารกิจ">
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="mDetail">รายละเอียด</label>
+          <textarea class="form-control" id="mDetail" rows="2"
+                    placeholder="รายละเอียดภารกิจ"></textarea>
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="mPlace">สถานที่</label>
+          <input type="text" class="form-control" id="mPlace" placeholder="เช่น ถ.สวรรค์วิถี">
+        </div>
+
+        <div class="row g-2 mt-0">
+          <div class="col-7">
+            <label class="form-label" for="mContact">ชื่อผู้ประสานงาน</label>
+            <input type="text" class="form-control" id="mContact">
+          </div>
+          <div class="col-5">
+            <label class="form-label" for="mPhone">โทร.</label>
+            <input type="tel" class="form-control" id="mPhone" inputmode="tel">
+          </div>
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="mOwner">ผู้รับผิดชอบ (รหัส ปนพ.)</label>
+          <input type="text" class="form-control" id="mOwner"
+                 placeholder="พิมพ์รหัสหรือชื่อ เช่น 6128 ด.ต.พสิษฐ์ โพธิ์เพียร">
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label">รูปภาพ (ไม่เกิน 2 รูป)</label>
+          <div class="dropzone" id="imgDrop">
+            <i class="bi bi-image"></i>
+            <div>
+              <div class="main">แนบรูปภาพ</div>
+              <div class="hint">JPG PNG • ระบบย่อขนาดให้อัตโนมัติ</div>
+            </div>
+          </div>
+          <input type="file" id="imgInput" accept="image/*" multiple hidden>
+          <div class="img-preview" id="imgPreview"></div>
+        </div>
+
+        <div class="mt-2">
+          <label class="form-label" for="mPin">รหัส PIN ผู้ดูแลระบบ</label>
+          <input type="password" class="form-control" id="mPin" inputmode="numeric" autocomplete="off">
+        </div>
+
+        <div class="d-grid gap-2 mt-3">
+          <button class="btn btn-signal" onclick="submitMission()">
+            <i class="bi bi-save"></i> บันทึกภารกิจ
+          </button>
+          <button class="btn btn-outline-secondary d-none" id="btnCancelMission"
+                  onclick="resetMissionForm()">ยกเลิกการแก้ไข</button>
+        </div>
+
+        <div class="form-text mt-2">
+          <i class="bi bi-info-circle"></i>
+          เลือกช่วงวันที่ ระบบจะบันทึกภารกิจให้ทุกวันจนถึงวันสิ้นสุดโดยอัตโนมัติ
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card-panel">
+        <p class="panel-title">
+          <i class="bi bi-graph-up"></i> สถิติภารกิจพิเศษ
+          <span class="sub" id="missionStatMeta">—</span>
+        </p>
+        <div class="mission-stat" id="missionStatBox">
+          <div class="box"><div class="period">กำลังโหลด…</div></div>
+        </div>
+      </div>
+
+      <div class="card-panel">
+        <p class="panel-title">
+          <i class="bi bi-list-check"></i> ภารกิจในเดือนนี้
+          <span class="sub" id="missionListMeta">—</span>
+        </p>
+        <div class="table-responsive" style="max-height:320px;overflow-y:auto">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr><th>วันที่</th><th>ประเภท</th><th>รายละเอียด</th><th class="text-end">จัดการ</th></tr>
+            </thead>
+            <tbody id="missionListBody">
+              <tr><td colspan="4" class="text-muted small">กำลังโหลด…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 อันดับลามากสุด -->
+  <div class="top5">
+    <h3><i class="bi bi-exclamation-triangle-fill text-warning"></i>
+      <span id="top5Title">5 อันดับผู้ลาราชการมากที่สุดในปีนี้</span></h3>
+    <ol id="top5List"><li class="text-muted">กำลังโหลด…</li></ol>
+  </div>
+
+  <!-- สรุปการลาเดือนปัจจุบัน -->
+  <div class="card-panel">
+    <p class="panel-title">
+      <i class="bi bi-table"></i> สรุปการลา/ไปราชการ
+      <span class="sub" id="monthSummaryMeta">—</span>
+    </p>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>รหัส ยศชื่อ-ชื่อสกุล</th>
+            <th class="text-center">ลาราชการ</th>
+            <th class="text-center">ไปราชการ</th>
+            <th class="text-center">รวม</th>
+            <th>วันที่</th>
+          </tr>
+        </thead>
+        <tbody id="monthSummaryBody">
+          <tr><td colspan="5" class="text-muted small">กำลังโหลด…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- จุดที่ขาดผู้ปฏิบัติ -->
+  <div class="card-panel">
+    <p class="panel-title">
+      <i class="bi bi-exclamation-triangle"></i>
+      จุดเร่งด่วน / วิทยุ / พลขับ ที่ไม่มีผู้ปฏิบัติ
+    </p>
+
+    <div class="row g-2 align-items-end">
+      <div class="col-8 col-sm-5">
+        <label class="form-label" for="summaryDate">วันที่</label>
+        <input type="date" class="form-control" id="summaryDate">
+      </div>
+      <div class="col-4 col-sm-3">
+        <button class="btn btn-ink w-100" onclick="reloadHome()"><i class="bi bi-search"></i> ตรวจ</button>
+      </div>
+    </div>
+
+    <div id="absenceMeta" class="mt-3 small text-muted">—</div>
+    <div class="table-responsive mt-2">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr><th>สถานะ</th><th>หน่วย/ผลัด</th><th>รหัส ยศชื่อ-ชื่อสกุล</th><th>จุดปฏิบัติหน้าที่</th></tr>
+        </thead>
+        <tbody id="absenceBody">
+          <tr><td colspan="4" class="text-muted small">กำลังโหลด…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- นำเข้าไฟล์ -->
+  <div class="card-panel">
+    <p class="panel-title"><i class="bi bi-file-earmark-excel"></i> นำเข้าไฟล์ Excel</p>
+
+    <div id="dropzone" class="dropzone">
+      <i class="bi bi-cloud-arrow-up"></i>
+      <div>
+        <div class="main">ลากไฟล์มาวาง หรือกดเพื่อเลือกไฟล์</div>
+        <div class="hint">.xlsx .xlsm .xls • ไม่เกิน 20 MB</div>
+      </div>
+      <div id="fileChipWrap" class="ms-auto"></div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" hidden>
+
+    <div class="row g-3 mt-1">
+      <div class="col-sm-6">
+        <label class="form-label" for="pinInput">รหัส PIN ผู้ดูแลระบบ</label>
+        <input type="password" class="form-control" id="pinInput" inputmode="numeric" autocomplete="off">
+      </div>
+      <div class="col-sm-6 d-flex align-items-end">
+        <button class="btn btn-signal w-100" id="btnImport" onclick="startImport()">
+          <i class="bi bi-upload"></i> นำเข้าและแทนที่ข้อมูลเดิม
+        </button>
+      </div>
+    </div>
+
+    <div id="progressWrap" class="mt-3 d-none">
+      <div class="d-flex justify-content-between small mb-1">
+        <span id="progressLabel">กำลังเตรียมไฟล์…</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress"><div class="progress-bar bg-warning" id="progressBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="form-text mt-3">
+      <i class="bi bi-shield-check"></i> ระบบสำรองไฟล์เดิมไว้ในโฟลเดอร์อัปโหลดก่อนเขียนทับทุกครั้ง
+    </div>
+  </div>
+
+  <!-- ตัวอย่างรายงาน -->
+  <div class="card-panel">
+    <p class="panel-title"><i class="bi bi-chat-left-text"></i> ตัวอย่างรายงานที่จะส่งเข้ากลุ่ม LINE</p>
+
+    <div class="row g-2 align-items-end">
+      <div class="col-8 col-sm-5">
+        <label class="form-label" for="previewDate">วันที่</label>
+        <input type="date" class="form-control" id="previewDate">
+      </div>
+      <div class="col-4 col-sm-3">
+        <button class="btn btn-ink w-100" onclick="loadPreview()"><i class="bi bi-eye"></i> ดู</button>
+      </div>
+      <div class="col-6 col-sm-2">
+        <button class="btn btn-outline-secondary w-100" onclick="shiftDate(-1)">
+          <i class="bi bi-chevron-left"></i> ก่อน</button>
+      </div>
+      <div class="col-6 col-sm-2">
+        <button class="btn btn-outline-secondary w-100" onclick="shiftDate(1)">
+          ถัดไป <i class="bi bi-chevron-right"></i></button>
+      </div>
+    </div>
+
+    <div class="mt-3"><span class="badge badge-soft" id="previewMeta">—</span></div>
+    <div class="report-box mt-2" id="reportBox">กดปุ่ม "ดู" เพื่อแสดงตัวอย่างรายงาน</div>
+
+    <div class="mt-3 d-flex gap-2 flex-wrap">
+      <button class="btn btn-sm btn-outline-secondary" onclick="copyReport()">
+        <i class="bi bi-clipboard"></i> คัดลอกข้อความ</button>
+      <button class="btn btn-sm btn-signal" onclick="pushToLine()">
+        <i class="bi bi-send"></i> ส่งเข้ากลุ่ม LINE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== หน้าข้อมูลการลาทั้งหมด ============================== -->
+<div class="container view" id="viewAll" style="max-width:1120px">
+
+  <div class="card-panel">
+    <div class="d-flex align-items-end gap-2 flex-wrap">
+      <div style="min-width:150px">
+        <label class="form-label" for="yearSelect">ปีที่ต้องการดู</label>
+        <select class="form-select" id="yearSelect" onchange="loadAllData()"></select>
+      </div>
+      <button class="btn btn-ink" onclick="loadAllData()">
+        <i class="bi bi-arrow-clockwise"></i> โหลดใหม่
+      </button>
+    </div>
+
+    <div class="strip mt-3" id="yearStrip">
+      <div class="item"><div class="k">กำลังโหลด…</div><div class="v">—</div></div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card-panel">
+        <p class="panel-title"><i class="bi bi-bar-chart"></i> ผลรวมรายเดือน</p>
+        <div class="chart-box"><canvas id="chartMonthly"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card-panel">
+        <p class="panel-title"><i class="bi bi-pie-chart"></i> สัดส่วนทั้งปี</p>
+        <div class="chart-box"><canvas id="chartYear"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-panel">
+    <p class="panel-title"><i class="bi bi-people"></i> รายบุคคล (เรียงจากมากไปน้อย)</p>
+    <div class="chart-box" style="height:340px"><canvas id="chartPerson"></canvas></div>
+  </div>
+
+  <!-- ค้นหา -->
+  <div class="card-panel">
+    <p class="panel-title"><i class="bi bi-search"></i> ค้นหาการลา เวรพัก และไปราชการ ของกำลังพล</p>
+
+    <div class="row g-2 align-items-end">
+      <div class="col-sm-5">
+        <label class="form-label" for="searchKeyword">รหัส หรือ ชื่อ</label>
+        <input type="text" class="form-control" id="searchKeyword" placeholder="เช่น 6128 หรือ พสิษฐ์">
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label" for="searchDate">วันที่ (เว้นว่าง = ทุกวัน)</label>
+        <input type="date" class="form-control" id="searchDate">
+      </div>
+      <div class="col-sm-3 d-flex gap-2">
+        <button class="btn btn-ink flex-fill" onclick="doSearch()"><i class="bi bi-search"></i> ค้นหา</button>
+        <button class="btn btn-outline-secondary" onclick="clearSearch()"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+
+    <div id="searchMeta" class="mt-3 small text-muted">กรอกเงื่อนไขแล้วกดค้นหา</div>
+    <div class="table-responsive mt-2">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>วันที่</th><th>ประเภท</th><th>รหัส ยศชื่อ-ชื่อสกุล</th>
+            <th>จุดปฏิบัติหน้าที่</th><th>รายละเอียด</th><th class="text-end">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="searchBody">
+          <tr><td colspan="6" class="text-muted small">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ตารางรายบุคคลทั้งปี -->
+  <div class="card-panel">
+    <p class="panel-title"><i class="bi bi-list-ol"></i> ตารางสรุปรายบุคคลทั้งปี</p>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>รหัส ยศชื่อ-ชื่อสกุล</th>
+            <th class="text-center">ลาราชการ</th><th class="text-center">ไปราชการ</th>
+            <th class="text-center">รวม</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="personBody">
+          <tr><td colspan="6" class="text-muted small">กำลังโหลด…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script src="config.js"></script>
+<script>
+  /* ============================================================================
+   * google.script.run polyfill — every call site below (validateLeaveEntry,
+   * saveLeaveEntry, getHomeData, saveMission, ...) was written against the
+   * real Google Apps Script client API and is untouched. This shim
+   * reimplements just enough of that API's shape (withSuccessHandler /
+   * withFailureHandler / dynamic method-as-RPC-name) to route every call
+   * through the Supabase Edge Function router at API_BASE instead.
+   * ============================================================================ */
+  (function () {
+    function makeRunner(successHandler, failureHandler) {
+      var fixed = {
+        withSuccessHandler: function (fn) { return makeRunner(fn, failureHandler); },
+        withFailureHandler: function (fn) { return makeRunner(successHandler, fn); }
+      };
+      return new Proxy(fixed, {
+        get: function (target, prop) {
+          if (prop in target) return target[prop];
+          if (typeof prop !== 'string') return undefined;
+          return function () {
+            var args = Array.prototype.slice.call(arguments);
+            fetch(window.API_BASE, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: prop, args: args })
+            })
+              .then(function (r) {
+                return r.json().then(function (data) { return { status: r.status, data: data }; });
+              })
+              .then(function (res) {
+                if (res.status >= 400) {
+                  if (failureHandler) failureHandler(new Error(res.data && res.data.message || 'request failed'));
+                  else console.error(res.data);
+                  return;
+                }
+                if (successHandler) successHandler(res.data);
+              })
+              .catch(function (err) {
+                if (failureHandler) failureHandler(err);
+                else console.error(err);
+              });
+          };
+        }
+      });
+    }
+    window.google = window.google || {};
+    window.google.script = window.google.script || {};
+    window.google.script.run = makeRunner(null, null);
+  })();
+</script>
+
+<script>
+  /* ============================== สถานะรวม ============================== */
+  var HOME = null;
+  var ALLDATA = null;
+  var calYearBE = null, calMonth = null, selectedKey = '';
+  var selectedFile = null, currentReport = '';
+  var charts = {};
+
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function showView(name) {
+    document.getElementById('viewHome').classList.toggle('active', name === 'home');
+    document.getElementById('viewAll').classList.toggle('active', name === 'all');
+    document.getElementById('btnViewAll').classList.toggle('d-none', name === 'all');
+    document.getElementById('btnViewHome').classList.toggle('d-none', name === 'home');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (name === 'all' && !ALLDATA) loadAllData();
+  }
+
+  /* ============================== โหลดหน้าแรก ============================== */
+  function reloadHome() {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) {
+          Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: res.message });
+          return;
+        }
+        HOME = res;
+        calYearBE = res.calendar.yearBE;
+        calMonth = res.calendar.month;
+
+        renderStatus();
+        renderCalendar();
+        renderTop5();
+        renderMonthSummary();
+        renderAbsence();
+        renderMissionStats();
+        renderMissionList();
+        fillPersonSelect();
+      })
+      .withFailureHandler(function (err) {
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+      })
+      .getHomeData(calYearBE, calMonth, document.getElementById('summaryDate').value);
+  }
+
+  function renderStatus() {
+    var s = HOME.system || {};
+    var items = [
+      ['วันนี้', s.today ? s.today.replace('วัน', '') + ' (' + s.oddEven + ')' : '—'],
+      ['กำลังพล', 'รปจ.1 = ' + HOME.stats.rpj1 + ' / รปจ.2 = ' + HOME.stats.rpj2 + ' นาย'],
+      ['นำเข้าข้อมูลล่าสุด', s.lastImportAt || '—'],
+      ['แจ้งเตือนอัตโนมัติ', (s.notifyTime || '20:15') + ' น.' + (s.hasToken ? '' : ' (ยังไม่ตั้งโทเคน)')]
+    ];
+    document.getElementById('statusStrip').innerHTML = items.map(function (i) {
+      return '<div class="item"><div class="k">' + i[0] + '</div><div class="v">' + esc(i[1]) + '</div></div>';
+    }).join('');
+  }
+
+  /* ============================== ปฏิทิน ============================== */
+  function renderDow() {
+    var d = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+    document.getElementById('calDow').innerHTML =
+      d.map(function (x) { return '<div class="cal-dow">' + x + '</div>'; }).join('');
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+  function renderCalendar() {
+    var cal = HOME.calendar;
+    document.getElementById('calMonth').textContent = cal.monthName + ' ' + cal.yearBE;
+
+    var cells = [];
+    for (var i = 0; i < cal.firstWeekday; i++) cells.push('<div class="cal-cell empty"></div>');
+
+    for (var d = 1; d <= cal.daysInMonth; d++) {
+      var key = cal.yearCE + '-' + pad2(cal.month) + '-' + pad2(d);
+      var info = cal.days[key];
+
+      var cls = 'cal-cell';
+      if (info && info.holiday) cls += ' holiday';
+      if (key === cal.todayKey) cls += ' today';
+      if (key === selectedKey) cls += ' selected';
+
+      var pills = '';
+      if (info && info.leave.length) pills += '<div class="pill pill-leave">ลา ' + info.leave.length + '</div>';
+      if (info && info.official.length) pills += '<div class="pill pill-official">ราชการ ' + info.official.length + '</div>';
+      if (info && info.rest.length) pills += '<div class="pill pill-rest">พัก ' + info.rest.length + '</div>';
+
+      var holidayTag = (info && info.holiday)
+        ? '<small>' + esc(info.holiday.substring(0, 12)) + '</small>' : '';
+
+      cells.push('<div class="' + cls + '" onclick="showDay(\'' + key + '\')">' +
+        '<div class="d">' + d + holidayTag + '</div>' + pills + '</div>');
+    }
+    document.getElementById('calGrid').innerHTML = cells.join('');
+  }
+
+  function showDay(key) {
+    selectedKey = key;
+    renderCalendar();
+
+    var info = HOME.calendar.days[key];
+    var box = document.getElementById('dayDetail');
+    var parts = key.split('-');
+    var title = '<b>' + Number(parts[2]) + ' ' + HOME.calendar.monthName + ' ' + HOME.calendar.yearBE + '</b>';
+    if (info && info.holiday) title += ' <span class="badge badge-leave">' + esc(info.holiday) + '</span>';
+
+    if (!info || (!info.leave.length && !info.official.length && !info.rest.length)) {
+      box.innerHTML = title + '<div class="text-muted mt-1">ไม่มีผู้ลาราชการ ไปราชการ หรือเวรพัก</div>';
+    } else {
+      var html = title;
+      function block(label, cls, list) {
+        if (!list.length) return '';
+        return '<div class="mt-2"><span class="badge ' + cls + '">' + label + '</span></div>' +
+          '<ul class="mb-0 mt-1 ps-3">' + list.map(function (x) {
+            return '<li>' + esc(x.name) + (x.point ? ' — ' + esc(x.point) : '') + '</li>';
+          }).join('') + '</ul>';
+      }
+      html += block('ลาราชการ', 'badge-leave', info.leave);
+      html += block('ไปราชการ', 'badge-official', info.official);
+      html += block('เวรพัก', 'badge-rest', info.rest);
+      box.innerHTML = html;
+    }
+    box.classList.remove('d-none');
+
+    document.getElementById('summaryDate').value = key;
+    document.getElementById('previewDate').value = key;
+    if (!document.getElementById('editId').value) {
+      document.getElementById('startDate').value = key;
+      document.getElementById('endDate').value = key;
+    }
+    reloadHome();
+  }
+
+  function shiftMonth(step) {
+    calMonth += step;
+    if (calMonth < 1) { calMonth = 12; calYearBE -= 1; }
+    if (calMonth > 12) { calMonth = 1; calYearBE += 1; }
+    reloadHome();
+  }
+
+  /* ============================== 5 อันดับ ============================== */
+  function renderTop5() {
+    var stats = HOME.yearStats;
+    document.getElementById('top5Title').textContent =
+      '5 อันดับผู้ลาราชการมากที่สุด ปี ' + stats.yearBE + ' (รวมทั้งปี ' + stats.totalLeave + ' วัน)';
+
+    if (!stats.top5.length) {
+      document.getElementById('top5List').innerHTML =
+        '<li class="text-muted">ยังไม่มีข้อมูลการลาในปีนี้</li>';
+      return;
+    }
+    var max = stats.top5[0].leave || 1;
+    document.getElementById('top5List').innerHTML = stats.top5.map(function (p, i) {
+      return '<li>' +
+        '<span class="rank r' + (i + 1) + '">' + (i + 1) + '</span>' +
+        '<span style="flex:0 0 auto;min-width:170px">' + esc(p.name) + '</span>' +
+        '<span class="bar-wrap"><span class="bar-fill" style="width:' +
+          Math.round(p.leave / max * 100) + '%"></span></span>' +
+        '<b style="flex:0 0 auto">' + p.leave + ' วัน</b></li>';
+    }).join('');
+  }
+
+  /* ============================== สรุปเดือน ============================== */
+  function renderMonthSummary() {
+    var ms = HOME.monthSummary;
+    document.getElementById('monthSummaryMeta').textContent =
+      ms.monthName + ' ' + ms.yearBE + ' • ลา ' + ms.totalLeave + ' วัน • ไปราชการ ' + ms.totalOfficial + ' วัน';
+
+    if (!ms.people.length) {
+      document.getElementById('monthSummaryBody').innerHTML =
+        '<tr><td colspan="5" class="text-muted small">เดือนนี้ยังไม่มีผู้ลาหรือไปราชการ</td></tr>';
+      return;
+    }
+
+    document.getElementById('monthSummaryBody').innerHTML = ms.people.map(function (p) {
+      var dates = p.dates.map(function (d) {
+        var cls = d.type === 'ไปราชการ' ? 'badge-official' : 'badge-leave';
+        return '<span class="badge ' + cls + ' me-1" style="font-weight:400">' + esc(d.dateText) + '</span>';
+      }).join('');
+      return '<tr><td>' + esc(p.name) + '</td>' +
+        '<td class="text-center">' + (p.leave || '-') + '</td>' +
+        '<td class="text-center">' + (p.official || '-') + '</td>' +
+        '<td class="text-center fw-bold">' + p.total + '</td>' +
+        '<td>' + dates + '</td></tr>';
+    }).join('');
+  }
+
+  /* ============================== จุดที่ขาด ============================== */
+  function renderAbsence() {
+    var a = HOME.absence;
+    document.getElementById('absenceMeta').innerHTML =
+      a.dateFull + ' • ' + a.oddEven + ' • ตรวจ ' + a.totalPoints + ' จุด • ' +
+      (a.absentCount === 0
+        ? '<span class="text-success fw-semibold">ปฏิบัติหน้าที่ครบทุกจุด</span>'
+        : '<span class="text-danger fw-semibold">ต้องจัดกำลังทดแทน ' + a.absentCount + ' จุด</span>');
+
+    if (!a.rows.length) {
+      document.getElementById('absenceBody').innerHTML =
+        '<tr><td colspan="4" class="text-success small">ไม่มีจุดใดขาดผู้ปฏิบัติหน้าที่</td></tr>';
+      return;
+    }
+    document.getElementById('absenceBody').innerHTML = a.rows.map(function (r) {
+      var cls = r.status === 'leave' ? 'badge-leave'
+        : (r.status === 'official' ? 'badge-official' : 'badge-rest');
+      return '<tr><td><span class="badge ' + cls + '">' + esc(r.statusLabel) + '</span></td>' +
+        '<td>' + esc(r.section) + '</td><td>' + esc(r.name) + '</td>' +
+        '<td>' + esc(r.point || '-') + '</td></tr>';
+    }).join('');
+  }
+
+  /* ============================== ฟอร์มบันทึก ============================== */
+  function fillPersonSelect() {
+    var sel = document.getElementById('personSelect');
+    var current = sel.value;
+
+    // จัดกลุ่มตามหน่วย เพื่อให้เลือกง่ายเมื่อมีกำลังพลหลายสิบนาย
+    var groups = {}, order = [];
+    HOME.personnel.forEach(function (p) {
+      var g = p.group || p.source || 'อื่นๆ';
+      if (!groups[g]) { groups[g] = []; order.push(g); }
+      groups[g].push(p);
+    });
+
+    sel.innerHTML = '<option value="">— เลือกเจ้าหน้าที่ —</option>' +
+      order.map(function (g) {
+        return '<optgroup label="' + esc(g) + ' (' + groups[g].length + ')">' +
+          groups[g].map(function (p) {
+            return '<option value="' + esc(p.code) + '" data-point="' + esc(p.point) + '">' +
+              esc(p.name) + '</option>';
+          }).join('') + '</optgroup>';
+      }).join('');
+
+    if (current) sel.value = current;
+  }
+
+  function onPersonChange() {
+    var sel = document.getElementById('personSelect');
+    var opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.point) {
+      document.getElementById('pointInput').placeholder = 'จุดประจำ: ' + opt.dataset.point;
+    }
+  }
+
+  function resetForm() {
+    document.getElementById('editId').value = '';
+    document.getElementById('formTitle').textContent = 'บันทึกการลาราชการ / ไปราชการ';
+    document.getElementById('btnCancelEdit').classList.add('d-none');
+    document.getElementById('pointInput').value = '';
+    document.getElementById('detailInput').value = '';
+    document.getElementById('endDate').disabled = false;
+  }
+
+  function collectForm() {
+    var id = document.getElementById('editId').value;
+    return {
+      type: document.querySelector('input[name="rtype"]:checked').value,
+      code: document.getElementById('personSelect').value,
+      startDate: document.getElementById('startDate').value,
+      endDate: document.getElementById('endDate').value || document.getElementById('startDate').value,
+      point: document.getElementById('pointInput').value.trim(),
+      detail: document.getElementById('detailInput').value.trim(),
+      pin: document.getElementById('pinLeave').value.trim(),
+      id: id,
+      excludeId: id
+    };
+  }
+
+  function submitLeave() {
+    var f = collectForm();
+    if (!f.code) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกเจ้าหน้าที่' }); return; }
+    if (!f.startDate) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกวันที่' }); return; }
+    if (!f.pin) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้กรอกรหัส PIN' }); return; }
+
+    Swal.fire({
+      title: 'กำลังตรวจสอบข้อมูล…', allowOutsideClick: false,
+      didOpen: function () { Swal.showLoading(); }
+    });
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) { Swal.fire({ icon: 'error', title: 'ตรวจสอบไม่ผ่าน', text: res.message }); return; }
+        showConfirmDialog(f, res);
+      })
+      .withFailureHandler(function (err) {
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+      })
+      .validateLeaveEntry(f);
+  }
+
+  function showConfirmDialog(form, check) {
+    var html = '<div class="text-start" style="font-size:.86rem">';
+    html += '<div class="mb-2"><b>' + esc(check.person.name) + '</b> ' +
+      '<span class="badge bg-secondary">' + esc(check.person.source) + '</span></div>';
+    html += '<div class="mb-2">' + esc(form.type) + ' ' + esc(check.startText) +
+      (check.totalDays > 1 ? ' ถึง ' + esc(check.endText) : '') +
+      ' <b>รวม ' + check.totalDays + ' วัน</b></div>';
+
+    html += '<table class="table table-sm mb-2" style="font-size:.78rem"><thead><tr>' +
+      '<th>วันที่</th><th>ผลัด</th><th>ลา/ไปราชการแล้ว</th><th>ท่านเป็นคนที่</th></tr></thead><tbody>';
+    check.perDay.forEach(function (d) {
+      var cls = d.sameShiftCount >= 2 ? 'table-danger' : (d.sameShiftCount === 1 ? 'table-warning' : '');
+      html += '<tr class="' + cls + '"><td>' + esc(d.dateText) + '</td><td>' + esc(d.shift) + '</td>' +
+        '<td>' + d.sameShiftCount + ' นาย</td><td><b>' + d.myOrder + '</b></td></tr>';
+    });
+    html += '</tbody></table>';
+
+    if (check.warnings.length) {
+      html += '<div class="mt-2"><b>ข้อควรทราบ</b></div><ul class="ps-3 mb-0">';
+      check.warnings.forEach(function (w) {
+        var color = w.level === 'danger' ? '#C4453B' : (w.level === 'warn' ? '#C98A16' : '#5A6A80');
+        var icon = w.level === 'danger' ? '⛔' : (w.level === 'warn' ? '⚠️' : 'ℹ️');
+        html += '<li style="color:' + color + '">' + icon + ' <b>' + esc(w.topic) + '</b> — ' +
+          esc(w.text) + '</li>';
+      });
+      html += '</ul>';
+    } else {
+      html += '<div class="text-success">✅ ไม่พบข้อควรระวัง</div>';
+    }
+    html += '</div>';
+
+    Swal.fire({
+      title: check.hasDuplicate ? 'พบข้อมูลซ้ำ — ยืนยันอีกครั้ง' : 'ยืนยันการบันทึก',
+      html: html,
+      icon: check.hasDuplicate ? 'error' : (check.warnings.length ? 'warning' : 'question'),
+      width: 640, showCancelButton: true,
+      confirmButtonText: form.id ? 'ยืนยันการแก้ไข' : 'ยืนยันการบันทึก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: check.hasDuplicate ? '#C4453B' : '#E8A33D'
+    }).then(function (r) { if (r.isConfirmed) doSave(form); });
+  }
+
+  function doSave(form) {
+    Swal.fire({
+      title: 'กำลังบันทึก…', allowOutsideClick: false,
+      didOpen: function () { Swal.showLoading(); }
+    });
+
+    var payload = Object.assign({}, form, { confirmed: true });
+    var runner = google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) { Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: res.message }); return; }
+        Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.message, timer: 2200 });
+        resetForm();
+        ALLDATA = null;
+        reloadHome();
+      })
+      .withFailureHandler(function (err) {
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+      });
+
+    if (form.id) runner.updateLeaveEntry(payload);
+    else runner.saveLeaveEntry(payload);
+  }
+
+  function editRecord(id, type, code, dateISO, point, detail) {
+    showView('home');
+    document.getElementById('editId').value = id;
+    document.getElementById('formTitle').textContent = 'แก้ไขรายการ (' + type + ')';
+    document.getElementById('btnCancelEdit').classList.remove('d-none');
+    document.getElementById(type === 'ไปราชการ' ? 'typeOfficial' : 'typeLeave').checked = true;
+    document.getElementById('personSelect').value = code;
+    document.getElementById('startDate').value = dateISO;
+    document.getElementById('endDate').value = dateISO;
+    document.getElementById('endDate').disabled = true;
+    document.getElementById('pointInput').value = point || '';
+    document.getElementById('detailInput').value = detail || '';
+    document.querySelector('#viewHome .card-panel.accent').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function deleteRecord(id, groupId, type, name, dateText) {
+    Swal.fire({
+      title: 'ลบรายการ',
+      html: '<div class="text-start">' + esc(name) + '<br>' + esc(type) + ' ' + esc(dateText) + '</div>',
+      icon: 'warning', input: 'password',
+      inputLabel: 'กรอกรหัส PIN เพื่อยืนยัน',
+      inputAttributes: { autocomplete: 'off' },
+      showDenyButton: !!groupId, denyButtonText: 'ลบทั้งชุด',
+      showCancelButton: true, confirmButtonText: 'ลบเฉพาะวันนี้',
+      cancelButtonText: 'ยกเลิก', confirmButtonColor: '#C4453B'
+    }).then(function (r) {
+      if (r.isDismissed) return;
+      if (!r.value) { Swal.fire({ icon: 'warning', title: 'ต้องกรอก PIN' }); return; }
+
+      var payload = { type: type, pin: r.value };
+      if (r.isDenied && groupId) payload.groupId = groupId; else payload.id = id;
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          Swal.fire({
+            icon: res.ok ? 'success' : 'error',
+            title: res.ok ? 'ลบแล้ว' : 'ลบไม่สำเร็จ', text: res.message
+          });
+          if (res.ok) { ALLDATA = null; reloadHome(); doSearch(); }
+        })
+        .withFailureHandler(function (err) {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        })
+        .deleteLeaveEntry(payload);
+    });
+  }
+
+  /* ============================== หน้าข้อมูลการลาทั้งหมด ============================== */
+  function loadAllData() {
+    var y = document.getElementById('yearSelect').value;
+    document.getElementById('yearStrip').innerHTML =
+      '<div class="item"><div class="k">กำลังโหลด…</div><div class="v">—</div></div>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) { Swal.fire({ icon: 'error', title: 'โหลดไม่สำเร็จ', text: res.message }); return; }
+        ALLDATA = res;
+
+        var sel = document.getElementById('yearSelect');
+        if (!sel.options.length) {
+          sel.innerHTML = res.availableYears.map(function (yy) {
+            return '<option value="' + yy + '"' + (yy === res.yearBE ? ' selected' : '') +
+              '>พ.ศ. ' + yy + '</option>';
+          }).join('');
+        }
+
+        var s = res.stats;
+        document.getElementById('yearStrip').innerHTML = [
+          ['ปี', 'พ.ศ. ' + s.yearBE],
+          ['รวมทั้งหมด', s.totalRecords + ' วัน'],
+          ['ลาราชการ', s.totalLeave + ' วัน'],
+          ['ไปราชการ', s.totalOfficial + ' วัน']
+        ].map(function (i) {
+          return '<div class="item"><div class="k">' + i[0] + '</div><div class="v">' + i[1] + '</div></div>';
+        }).join('');
+
+        drawCharts(s);
+        renderPersonTable(s);
+      })
+      .withFailureHandler(function (err) {
+        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+      })
+      .getAllLeaveData(y);
+  }
+
+  function drawCharts(s) {
+    Object.keys(charts).forEach(function (k) { if (charts[k]) charts[k].destroy(); });
+
+    charts.monthly = new Chart(document.getElementById('chartMonthly'), {
+      type: 'bar',
+      data: {
+        labels: s.monthly.map(function (m) { return m.name; }),
+        datasets: [
+          { label: 'ลาราชการ', data: s.monthly.map(function (m) { return m.leave; }), backgroundColor: '#C4453B' },
+          { label: 'ไปราชการ', data: s.monthly.map(function (m) { return m.official; }), backgroundColor: '#2E5EAA' }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+
+    charts.year = new Chart(document.getElementById('chartYear'), {
+      type: 'doughnut',
+      data: {
+        labels: ['ลาราชการ', 'ไปราชการ'],
+        datasets: [{ data: [s.totalLeave, s.totalOfficial], backgroundColor: ['#C4453B', '#2E5EAA'] }]
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    var top = s.people.slice(0, 15);
+    charts.person = new Chart(document.getElementById('chartPerson'), {
+      type: 'bar',
+      data: {
+        labels: top.map(function (p) { return p.name.replace(/^[0-9]+\s*/, ''); }),
+        datasets: [
+          { label: 'ลาราชการ', data: top.map(function (p) { return p.leave; }), backgroundColor: '#C4453B' },
+          { label: 'ไปราชการ', data: top.map(function (p) { return p.official; }), backgroundColor: '#2E5EAA' }
+        ]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        scales: { x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }, y: { stacked: true } },
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  }
+
+  function renderPersonTable(s) {
+    if (!s.people.length) {
+      document.getElementById('personBody').innerHTML =
+        '<tr><td colspan="6" class="text-muted small">ยังไม่มีข้อมูลในปีนี้</td></tr>';
+      return;
+    }
+    document.getElementById('personBody').innerHTML = s.people.map(function (p, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(p.name) + '</td>' +
+        '<td class="text-center">' + (p.leave || '-') + '</td>' +
+        '<td class="text-center">' + (p.official || '-') + '</td>' +
+        '<td class="text-center fw-bold">' + p.total + '</td>' +
+        '<td class="text-end"><button class="btn btn-sm btn-outline-secondary" onclick="viewPerson(\'' +
+        esc(p.code) + '\')"><i class="bi bi-eye"></i> รายละเอียด</button></td></tr>';
+    }).join('');
+  }
+
+  function viewPerson(code) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) { Swal.fire({ icon: 'error', title: 'ไม่สำเร็จ', text: res.message }); return; }
+        var rows = res.records.map(function (r) {
+          var cls = r.type === 'ไปราชการ' ? 'badge-official' : 'badge-leave';
+          return '<tr><td>' + esc(r.dateText) + '</td>' +
+            '<td><span class="badge ' + cls + '">' + esc(r.type) + '</span></td>' +
+            '<td>' + esc(r.point || '-') + '</td><td>' + esc(r.detail || '-') + '</td></tr>';
+        }).join('');
+        var months = res.monthly.filter(function (m) { return m.leave + m.official > 0; })
+          .map(function (m) { return m.name + ' ' + (m.leave + m.official); }).join(' • ') || 'ไม่มี';
+
+        Swal.fire({
+          title: res.name, width: 680,
+          html: '<div class="text-start" style="font-size:.84rem">' +
+            '<div class="mb-2">ปี พ.ศ. ' + res.yearBE + ' • ลาราชการ <b>' + res.totalLeave +
+            '</b> วัน • ไปราชการ <b>' + res.totalOfficial + '</b> วัน</div>' +
+            '<div class="mb-2 text-muted">รายเดือน: ' + esc(months) + '</div>' +
+            '<table class="table table-sm"><thead><tr><th>วันที่</th><th>ประเภท</th>' +
+            '<th>จุดปฏิบัติหน้าที่</th><th>รายละเอียด</th></tr></thead><tbody>' +
+            (rows || '<tr><td colspan="4" class="text-muted">ไม่มีข้อมูล</td></tr>') +
+            '</tbody></table></div>',
+          confirmButtonColor: '#14243F'
+        });
+      })
+      .getPersonLeaveDetail(code, document.getElementById('yearSelect').value);
+  }
+
+  /* ============================== ค้นหา ============================== */
+  function doSearch() {
+    var kw = document.getElementById('searchKeyword').value.trim();
+    var dt = document.getElementById('searchDate').value;
+    document.getElementById('searchBody').innerHTML =
+      '<tr><td colspan="6" class="text-muted small">กำลังค้นหา…</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) {
+          document.getElementById('searchBody').innerHTML =
+            '<tr><td colspan="6" class="text-danger small">' + esc(res.message) + '</td></tr>';
+          return;
+        }
+        document.getElementById('searchMeta').textContent =
+          'คำค้น: ' + (res.keyword || 'ทุกคน') + ' • วันที่: ' + res.dateText +
+          ' • พบ ' + res.count + ' รายการ';
+
+        if (!res.rows.length) {
+          document.getElementById('searchBody').innerHTML =
+            '<tr><td colspan="6" class="text-muted small">ไม่พบข้อมูล</td></tr>';
+          return;
+        }
+
+        document.getElementById('searchBody').innerHTML = res.rows.map(function (r) {
+          var cls = r.type === 'ไปราชการ' ? 'badge-official'
+            : (r.type === 'เวรพัก' ? 'badge-rest' : 'badge-leave');
+          var actions = r.editable
+            ? '<button class="btn btn-sm btn-outline-secondary me-1" title="แก้ไข" onclick="editRecord(\'' +
+                esc(r.id) + '\',\'' + esc(r.type) + '\',\'' + esc(r.code) + '\',\'' + esc(r.dateKey) +
+                '\',\'' + esc(r.point) + '\',\'' + esc(r.detail) + '\')"><i class="bi bi-pencil"></i></button>' +
+              '<button class="btn btn-sm btn-outline-danger" title="ลบ" onclick="deleteRecord(\'' +
+                esc(r.id) + '\',\'' + esc(r.groupId || '') + '\',\'' + esc(r.type) + '\',\'' +
+                esc(r.name) + '\',\'' + esc(r.dateText) + '\')"><i class="bi bi-trash"></i></button>'
+            : '<span class="text-muted small">ข้อมูลจากชีต</span>';
+
+          return '<tr><td>' + esc(r.dateText) + '</td>' +
+            '<td><span class="badge ' + cls + '">' + esc(r.type) + '</span></td>' +
+            '<td>' + esc(r.name) + '</td><td>' + esc(r.point || '-') + '</td>' +
+            '<td>' + esc(r.detail || '-') + '</td>' +
+            '<td class="text-end">' + actions + '</td></tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('searchBody').innerHTML =
+          '<tr><td colspan="6" class="text-danger small">' + esc(err.message) + '</td></tr>';
+      })
+      .searchLeaveRecords(kw, dt);
+  }
+
+  function clearSearch() {
+    document.getElementById('searchKeyword').value = '';
+    document.getElementById('searchDate').value = '';
+    document.getElementById('searchMeta').textContent = 'กรอกเงื่อนไขแล้วกดค้นหา';
+    document.getElementById('searchBody').innerHTML =
+      '<tr><td colspan="6" class="text-muted small">—</td></tr>';
+  }
+
+
+  /* ============================== ภารกิจพิเศษ ============================== */
+  var missionImages = [];          // [{name, mimeType, data(base64), preview}]
+
+  function onMissionTypeChange() {
+    var isOther = document.getElementById('mType').value === '__other__';
+    document.getElementById('mTypeOtherWrap').classList.toggle('d-none', !isOther);
+    if (isOther) document.getElementById('mTypeOther').focus();
+  }
+
+  function renderMissionStats() {
+    var st = HOME.missionStats;
+    if (!st) return;
+
+    document.getElementById('missionStatMeta').textContent = 'อ้างอิงวันที่ ' + st.refText;
+
+    var periods = [
+      { key: 'today', label: 'รอบวัน', range: st.refText },
+      { key: 'week', label: 'รอบสัปดาห์', range: st.weekText },
+      { key: 'month', label: 'รอบเดือน', range: st.monthText }
+    ];
+
+    document.getElementById('missionStatBox').innerHTML = periods.map(function (p) {
+      var b = st[p.key];
+      var rows = b.types.length
+        ? b.types.map(function (t) {
+            return '<li><span>' + esc(t.type) + '</span><b>' + t.count + '</b></li>';
+          }).join('')
+        : '<li class="text-muted"><span>ไม่มีภารกิจ</span><b>0</b></li>';
+      return '<div class="box">' +
+        '<div class="period">' + p.label + '</div>' +
+        '<div class="num">' + b.total + '</div>' +
+        '<div class="range">' + esc(p.range) + '</div>' +
+        '<ul>' + rows + '</ul></div>';
+    }).join('');
+  }
+
+  function renderMissionList() {
+    var list = HOME.missions || [];
+    document.getElementById('missionListMeta').textContent =
+      HOME.calendar.monthName + ' ' + HOME.calendar.yearBE + ' • ' + list.length + ' ภารกิจ';
+
+    if (!list.length) {
+      document.getElementById('missionListBody').innerHTML =
+        '<tr><td colspan="4" class="text-muted small">เดือนนี้ยังไม่มีภารกิจพิเศษ</td></tr>';
+      return;
+    }
+
+    document.getElementById('missionListBody').innerHTML = list.map(function (m) {
+      var imgs = '';
+      if (m.image1) imgs += ' <a href="' + esc(m.image1) + '" target="_blank" title="รูปที่ 1"><i class="bi bi-image"></i></a>';
+      if (m.image2) imgs += ' <a href="' + esc(m.image2) + '" target="_blank" title="รูปที่ 2"><i class="bi bi-images"></i></a>';
+
+      var actions = m.id
+        ? '<button class="btn btn-sm btn-outline-secondary me-1" title="แก้ไข" onclick=\'editMission(' +
+            JSON.stringify(m).replace(/'/g, '&#39;') + ')\'><i class="bi bi-pencil"></i></button>' +
+          '<button class="btn btn-sm btn-outline-danger" title="ลบ" onclick="deleteMission(\'' +
+            esc(m.id) + '\',\'' + esc(m.groupId || '') + '\',\'' + esc(m.dateText) + '\')">' +
+            '<i class="bi bi-trash"></i></button>'
+        : '<span class="text-muted small">ข้อมูลเดิม</span>';
+
+      return '<tr><td>' + esc(m.dateText) + (m.time ? '<br><span class="text-muted" style="font-size:.7rem">' +
+          esc(m.time) + '</span>' : '') + '</td>' +
+        '<td><span class="type-chip">' + esc(m.type) + '</span></td>' +
+        '<td>' + esc(m.detail) + (m.place ? '<br><span class="text-muted" style="font-size:.7rem">' +
+          esc(m.place) + '</span>' : '') + imgs + '</td>' +
+        '<td class="text-end">' + actions + '</td></tr>';
+    }).join('');
+  }
+
+  /* ---------- รูปภาพ: ย่อขนาดฝั่งเบราว์เซอร์ก่อนส่ง ---------- */
+  var imgDrop = document.getElementById('imgDrop');
+  var imgInput = document.getElementById('imgInput');
+
+  imgDrop.addEventListener('click', function () { imgInput.click(); });
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    imgDrop.addEventListener(evt, function (e) {
+      e.preventDefault(); e.stopPropagation(); imgDrop.classList.add('dragging');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    imgDrop.addEventListener(evt, function (e) {
+      e.preventDefault(); e.stopPropagation(); imgDrop.classList.remove('dragging');
+    });
+  });
+  imgDrop.addEventListener('drop', function (e) { addImages(e.dataTransfer.files); });
+  imgInput.addEventListener('change', function () { addImages(imgInput.files); });
+
+  function addImages(files) {
+    var remain = 2 - missionImages.length;
+    if (remain <= 0) {
+      Swal.fire({ icon: 'warning', title: 'แนบได้สูงสุด 2 รูป' });
+      return;
+    }
+    Array.prototype.slice.call(files, 0, remain).forEach(function (f) {
+      if (!/^image\//.test(f.type)) {
+        Swal.fire({ icon: 'error', title: 'ไฟล์ไม่ใช่รูปภาพ', text: f.name });
+        return;
+      }
+      resizeImage(f, function (result) {
+        missionImages.push(result);
+        renderImagePreview();
+      });
+    });
+    imgInput.value = '';
+  }
+
+  function resizeImage(file, done) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var max = 1280;
+        var w = img.width, h = img.height;
+        if (w > max || h > max) {
+          if (w > h) { h = Math.round(h * max / w); w = max; }
+          else { w = Math.round(w * max / h); h = max; }
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        var dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        done({
+          name: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+          mimeType: 'image/jpeg',
+          data: dataUrl.split(',')[1],
+          preview: dataUrl
+        });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderImagePreview() {
+    document.getElementById('imgPreview').innerHTML = missionImages.map(function (im, i) {
+      return '<div class="thumb"><img src="' + im.preview + '" alt="">' +
+        '<button onclick="removeImage(' + i + ')">✕</button></div>';
+    }).join('');
+  }
+
+  function removeImage(i) {
+    missionImages.splice(i, 1);
+    renderImagePreview();
+  }
+
+  /* ---------- บันทึก / แก้ไข / ลบ ---------- */
+  function collectMission() {
+    var type = document.getElementById('mType').value;
+    if (type === '__other__') type = document.getElementById('mTypeOther').value.trim();
+
+    return {
+      id: document.getElementById('missionEditId').value,
+      type: type,
+      startDate: document.getElementById('mStart').value,
+      endDate: document.getElementById('mEnd').value || document.getElementById('mStart').value,
+      time: document.getElementById('mTime').value.trim(),
+      detail: document.getElementById('mDetail').value.trim(),
+      place: document.getElementById('mPlace').value.trim(),
+      contact: document.getElementById('mContact').value.trim(),
+      phone: document.getElementById('mPhone').value.trim(),
+      owner: document.getElementById('mOwner').value.trim(),
+      images: missionImages.map(function (im) {
+        return { name: im.name, mimeType: im.mimeType, data: im.data };
+      }),
+      pin: document.getElementById('mPin').value.trim()
+    };
+  }
+
+  function submitMission() {
+    var f = collectMission();
+    if (!f.type) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้ระบุประเภทภารกิจ' }); return; }
+    if (!f.startDate) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกวันที่' }); return; }
+    if (!f.detail) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้กรอกรายละเอียด' }); return; }
+    if (!f.pin) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้กรอกรหัส PIN' }); return; }
+
+    var days = 1;
+    if (f.startDate && f.endDate) {
+      days = Math.round((new Date(f.endDate) - new Date(f.startDate)) / 86400000) + 1;
+      if (days < 1) days = 1;
+    }
+
+    Swal.fire({
+      title: f.id ? 'ยืนยันการแก้ไขภารกิจ' : 'ยืนยันการบันทึกภารกิจ',
+      html: '<div class="text-start" style="font-size:.86rem">' +
+        '<div><b>' + esc(f.type) + '</b>' + (f.time ? ' เวลา ' + esc(f.time) : '') + '</div>' +
+        '<div class="mt-1">' + esc(f.detail) + '</div>' +
+        (f.place ? '<div class="text-muted">สถานที่: ' + esc(f.place) + '</div>' : '') +
+        (f.owner ? '<div class="text-muted">ผู้รับผิดชอบ: ' + esc(f.owner) + '</div>' : '') +
+        '<div class="mt-2">บันทึกทั้งหมด <b>' + days + ' วัน</b>' +
+        (missionImages.length ? ' • แนบรูป ' + missionImages.length + ' รูป' : '') + '</div></div>',
+      icon: 'question', showCancelButton: true,
+      confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#E8A33D'
+    }).then(function (r) {
+      if (!r.isConfirmed) return;
+
+      Swal.fire({
+        title: 'กำลังบันทึก…', allowOutsideClick: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
+
+      var runner = google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res.ok) {
+            Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: res.message });
+            return;
+          }
+          Swal.fire({ icon: 'success', title: 'สำเร็จ', text: res.message, timer: 2400 });
+          resetMissionForm();
+          reloadHome();
+          loadPreview();
+        })
+        .withFailureHandler(function (err) {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        });
+
+      if (f.id) runner.updateMission(f); else runner.saveMission(f);
+    });
+  }
+
+  function editMission(m) {
+    document.getElementById('missionEditId').value = m.id;
+    document.getElementById('missionFormTitle').textContent = 'แก้ไขภารกิจ (' + m.dateText + ')';
+    document.getElementById('btnCancelMission').classList.remove('d-none');
+
+    var sel = document.getElementById('mType');
+    var known = ['ว.42', 'อำนวยการจราจร', 'เข้าร่วมประชุม', 'วิทยากร'];
+    if (known.indexOf(m.type) >= 0) {
+      sel.value = m.type;
+      document.getElementById('mTypeOtherWrap').classList.add('d-none');
+    } else {
+      sel.value = '__other__';
+      document.getElementById('mTypeOtherWrap').classList.remove('d-none');
+      document.getElementById('mTypeOther').value = m.type;
+    }
+
+    document.getElementById('mStart').value = m.dateKey;
+    document.getElementById('mEnd').value = m.dateKey;
+    document.getElementById('mEnd').disabled = true;
+    document.getElementById('mTime').value = m.time || '';
+    document.getElementById('mDetail').value = m.detail || '';
+    document.getElementById('mPlace').value = m.place || '';
+    document.getElementById('mContact').value = m.contact || '';
+    document.getElementById('mPhone').value = m.phone || '';
+    document.getElementById('mOwner').value = m.owner || '';
+
+    missionImages = [];
+    renderImagePreview();
+    document.getElementById('missionFormTitle').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function resetMissionForm() {
+    document.getElementById('missionEditId').value = '';
+    document.getElementById('missionFormTitle').textContent = 'บันทึกภารกิจพิเศษ';
+    document.getElementById('btnCancelMission').classList.add('d-none');
+    document.getElementById('mEnd').disabled = false;
+    ['mTime', 'mDetail', 'mPlace', 'mContact', 'mPhone', 'mOwner', 'mTypeOther']
+      .forEach(function (id) { document.getElementById(id).value = ''; });
+    missionImages = [];
+    renderImagePreview();
+  }
+
+  function deleteMission(id, groupId, dateText) {
+    Swal.fire({
+      title: 'ลบภารกิจ',
+      html: '<div class="text-start">วันที่ ' + esc(dateText) + '</div>',
+      icon: 'warning', input: 'password',
+      inputLabel: 'กรอกรหัส PIN เพื่อยืนยัน',
+      inputAttributes: { autocomplete: 'off' },
+      showDenyButton: !!groupId, denyButtonText: 'ลบทั้งชุด',
+      showCancelButton: true, confirmButtonText: 'ลบเฉพาะวันนี้',
+      cancelButtonText: 'ยกเลิก', confirmButtonColor: '#C4453B'
+    }).then(function (r) {
+      if (r.isDismissed) return;
+      if (!r.value) { Swal.fire({ icon: 'warning', title: 'ต้องกรอก PIN' }); return; }
+
+      var payload = { pin: r.value };
+      if (r.isDenied && groupId) payload.groupId = groupId; else payload.id = id;
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          Swal.fire({
+            icon: res.ok ? 'success' : 'error',
+            title: res.ok ? 'ลบแล้ว' : 'ลบไม่สำเร็จ', text: res.message
+          });
+          if (res.ok) { reloadHome(); loadPreview(); }
+        })
+        .withFailureHandler(function (err) {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        })
+        .deleteMission(payload);
+    });
+  }
+
+  /* ============================== นำเข้าไฟล์ ============================== */
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+
+  dropzone.addEventListener('click', function () { fileInput.click(); });
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault(); e.stopPropagation(); dropzone.classList.add('dragging');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    dropzone.addEventListener(evt, function (e) {
+      e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('dragging');
+    });
+  });
+  dropzone.addEventListener('drop', function (e) {
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function () {
+    if (fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file) {
+    if (!/\.(xlsx|xlsm|xls)$/.test(file.name.toLowerCase())) {
+      Swal.fire({ icon: 'error', title: 'ชนิดไฟล์ไม่ถูกต้อง', text: 'รองรับเฉพาะ .xlsx .xlsm .xls' });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      Swal.fire({ icon: 'error', title: 'ไฟล์ใหญ่เกินไป', text: 'ต้องไม่เกิน 20 MB' });
+      return;
+    }
+    selectedFile = file;
+    dropzone.classList.add('has-file');
+    document.getElementById('fileChipWrap').innerHTML =
+      '<div class="file-chip"><i class="bi bi-file-earmark-spreadsheet text-success"></i>' +
+      '<span>' + esc(file.name) + '</span><span class="text-muted">' +
+      (file.size / 1024 / 1024).toFixed(2) + ' MB</span></div>';
+  }
+
+  function setProgress(p, label) {
+    document.getElementById('progressWrap').classList.remove('d-none');
+    document.getElementById('progressBar').style.width = p + '%';
+    document.getElementById('progressPercent').textContent = p + '%';
+    document.getElementById('progressLabel').textContent = label;
+  }
+
+  function startImport() {
+    var pin = document.getElementById('pinInput').value.trim();
+    if (!selectedFile) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์' }); return; }
+    if (!pin) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้กรอก PIN' }); return; }
+
+    Swal.fire({
+      icon: 'question', title: 'ยืนยันการนำเข้า',
+      html: 'ข้อมูลเดิมใน Google Sheets จะถูกแทนที่ด้วย<br><b>' + esc(selectedFile.name) + '</b>',
+      showCancelButton: true, confirmButtonText: 'นำเข้าเลย',
+      cancelButtonText: 'ยกเลิก', confirmButtonColor: '#E8A33D'
+    }).then(function (r) { if (r.isConfirmed) doImport(pin); });
+  }
+
+  function doImport(pin) {
+    document.getElementById('btnImport').disabled = true;
+    setProgress(10, 'กำลังอ่านไฟล์…');
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      setProgress(35, 'กำลังอัปโหลด…');
+      var base64 = e.target.result.split(',')[1];
+      var fake = 35;
+      var timer = setInterval(function () {
+        fake = Math.min(fake + 4, 88);
+        setProgress(fake, 'กำลังแปลงไฟล์และเขียนลง Google Sheets…');
+      }, 900);
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          clearInterval(timer);
+          document.getElementById('btnImport').disabled = false;
+          if (!res.ok) {
+            setProgress(0, 'ไม่สำเร็จ');
+            Swal.fire({ icon: 'error', title: 'นำเข้าไม่สำเร็จ', text: res.message });
+            return;
+          }
+          setProgress(100, 'เสร็จสิ้น');
+          Swal.fire({
+            icon: 'success', title: 'นำเข้าข้อมูลสำเร็จ',
+            html: '<div class="small">แทนที่ ' + res.replaced + ' ชีต • สร้างใหม่ ' + res.created +
+              ' ชีต<br>ใช้เวลา ' + (res.elapsedMs / 1000).toFixed(1) + ' วินาที' +
+              (res.backupUrl ? '<br><a href="' + res.backupUrl + '" target="_blank">เปิดไฟล์สำรอง</a>' : '') +
+              '</div>', confirmButtonColor: '#14243F'
+          });
+          ALLDATA = null;
+          reloadHome();
+          loadPreview();
+        })
+        .withFailureHandler(function (err) {
+          clearInterval(timer);
+          document.getElementById('btnImport').disabled = false;
+          setProgress(0, 'เกิดข้อผิดพลาด');
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        })
+        .importExcelFile({
+          fileName: selectedFile.name, mimeType: selectedFile.type, data: base64, pin: pin
+        });
+    };
+    reader.onerror = function () {
+      document.getElementById('btnImport').disabled = false;
+      Swal.fire({ icon: 'error', title: 'อ่านไฟล์ไม่สำเร็จ' });
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+
+  /* ============================== ตัวอย่างรายงาน ============================== */
+  function loadPreview() {
+    document.getElementById('reportBox').textContent = 'กำลังโหลด…';
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.ok) {
+          document.getElementById('reportBox').textContent = 'ไม่สำเร็จ: ' + res.message;
+          return;
+        }
+        currentReport = res.message;
+        document.getElementById('reportBox').textContent = res.message;
+        document.getElementById('previewMeta').textContent = res.dateFull + ' • ' + res.oddEven;
+      })
+      .withFailureHandler(function (err) {
+        document.getElementById('reportBox').textContent = 'เกิดข้อผิดพลาด: ' + err.message;
+      })
+      .previewReport(document.getElementById('previewDate').value);
+  }
+
+  function shiftDate(days) {
+    var input = document.getElementById('previewDate');
+    var d = input.value ? new Date(input.value) : new Date();
+    d.setDate(d.getDate() + days);
+    input.value = d.toISOString().slice(0, 10);
+    loadPreview();
+  }
+
+  function copyReport() {
+    if (!currentReport) return;
+    navigator.clipboard.writeText(currentReport).then(function () {
+      Swal.fire({ icon: 'success', title: 'คัดลอกแล้ว', timer: 1200, showConfirmButton: false });
+    });
+  }
+
+  function pushToLine() {
+    Swal.fire({
+      title: 'ส่งเข้ากลุ่ม LINE', input: 'password',
+      inputLabel: 'กรอกรหัส PIN ผู้ดูแลระบบ',
+      inputAttributes: { autocomplete: 'off', inputmode: 'numeric' },
+      showCancelButton: true, confirmButtonText: 'ส่งเลย',
+      cancelButtonText: 'ยกเลิก', confirmButtonColor: '#E8A33D'
+    }).then(function (r) {
+      if (!r.isConfirmed || !r.value) return;
+      Swal.fire({
+        title: 'กำลังส่ง…', allowOutsideClick: false,
+        didOpen: function () { Swal.showLoading(); }
+      });
+      google.script.run
+        .withSuccessHandler(function (res) {
+          Swal.fire({
+            icon: res.ok ? 'success' : 'error',
+            title: res.ok ? 'ส่งเรียบร้อย' : 'ส่งไม่สำเร็จ', text: res.message
+          });
+        })
+        .withFailureHandler(function (err) {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        })
+        .pushReportFromWeb({ pin: r.value, dateText: document.getElementById('previewDate').value });
+    });
+  }
+
+  /* ============================== เริ่มต้น ============================== */
+  (function init() {
+    var today = new Date().toISOString().slice(0, 10);
+    ['previewDate', 'summaryDate', 'startDate', 'endDate', 'mStart', 'mEnd'].forEach(function (id) {
+      document.getElementById(id).value = today;
+    });
+    renderDow();
+    reloadHome();
+    loadPreview();
+  })();
+</script>
+</body>
+</html>
