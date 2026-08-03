@@ -548,22 +548,32 @@
   <div class="card-panel">
     <p class="panel-title"><i class="bi bi-file-earmark-excel"></i> นำเข้าไฟล์ Excel</p>
 
-    <div id="dropzone" class="dropzone">
-      <i class="bi bi-cloud-arrow-up"></i>
-      <div>
-        <div class="main">ลากไฟล์มาวาง หรือกดเพื่อเลือกไฟล์</div>
-        <div class="hint">.xlsx .xlsm .xls • ไม่เกิน 20 MB</div>
+    <div class="row g-3 align-items-end">
+      <div class="col-lg-8">
+        <div id="dropzone" class="dropzone">
+          <i class="bi bi-cloud-arrow-up"></i>
+          <div>
+            <div class="main">ลากไฟล์มาวาง หรือกดเพื่อเลือกไฟล์</div>
+            <div class="hint">.xlsx .xlsm .xls • ไม่เกิน 20 MB</div>
+          </div>
+          <div id="fileChipWrap" class="ms-auto"></div>
+        </div>
       </div>
-      <div id="fileChipWrap" class="ms-auto"></div>
+      <div class="col-lg-4">
+        <label class="form-label" for="pinInput">รหัส PIN ผู้ดูแลระบบ</label>
+        <input type="password" class="form-control" id="pinInput" inputmode="numeric" autocomplete="off">
+        <div class="form-text">ใช้เฉพาะตอนนำเข้า — ดาวน์โหลดไม่ต้องใส่</div>
+      </div>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls" hidden>
 
     <div class="row g-3 mt-1">
       <div class="col-sm-6">
-        <label class="form-label" for="pinInput">รหัส PIN ผู้ดูแลระบบ</label>
-        <input type="password" class="form-control" id="pinInput" inputmode="numeric" autocomplete="off">
+        <button class="btn btn-outline-secondary w-100" id="btnExport" onclick="downloadExcel()">
+          <i class="bi bi-download"></i> ดาวน์โหลดข้อมูลปัจจุบัน (.xlsx)
+        </button>
       </div>
-      <div class="col-sm-6 d-flex align-items-end">
+      <div class="col-sm-6">
         <button class="btn btn-signal w-100" id="btnImport" onclick="startImport()">
           <i class="bi bi-upload"></i> นำเข้าและแทนที่ข้อมูลเดิม
         </button>
@@ -1718,6 +1728,54 @@
     document.getElementById('progressBar').style.width = p + '%';
     document.getElementById('progressPercent').textContent = p + '%';
     document.getElementById('progressLabel').textContent = label;
+  }
+
+  /* ดาวน์โหลดข้อมูลปัจจุบันเป็นไฟล์ Excel — ไฟล์ที่ได้นำกลับเข้าระบบได้ทันที
+     เพราะใช้ชื่อชีตและลำดับคอลัมน์ชุดเดียวกับตัวนำเข้า */
+  function downloadExcel() {
+    var btn = document.getElementById('btnExport');
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังสร้างไฟล์…';
+
+    function restore() { btn.disabled = false; btn.innerHTML = original; }
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        restore();
+        if (!res || !res.ok) {
+          Swal.fire({ icon: 'error', title: 'ดาวน์โหลดไม่สำเร็จ', text: (res && res.message) || 'ไม่ทราบสาเหตุ' });
+          return;
+        }
+        /* base64 -> Blob: ไฟล์ .xlsx เป็นไบนารี ส่งผ่าน JSON ตรงๆ ไม่ได้ */
+        var raw = atob(res.data);
+        var bytes = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        var url = URL.createObjectURL(new Blob([bytes], { type: res.mimeType }));
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = res.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+
+        var c = res.counts || {};
+        Swal.fire({
+          icon: 'success', title: 'ดาวน์โหลดแล้ว',
+          html: esc(res.fileName) + '<br><br><div class="small text-start">' +
+            'รปจ.1 <b>' + (c.rpj1 || 0) + '</b> นาย • รปจ.2 <b>' + (c.rpj2 || 0) + '</b> นาย<br>' +
+            'จุดเร่งด่วน <b>' + (c.rush || 0) + '</b> รายการ • รายชื่อจราจร <b>' + (c.roster || 0) + '</b> นาย<br>' +
+            'ลาราชการ <b>' + (c.leave || 0) + '</b> รายการ • ไปราชการ <b>' + (c.official || 0) + '</b> รายการ' +
+            '</div>'
+        });
+      })
+      .withFailureHandler(function (err) {
+        restore();
+        Swal.fire({ icon: 'error', title: 'ดาวน์โหลดไม่สำเร็จ', text: err.message });
+      })
+      .exportExcelFile();
   }
 
   function startImport() {
