@@ -726,6 +726,11 @@
    * through the Supabase Edge Function router at API_BASE instead.
    * ============================================================================ */
   (function () {
+    /* Edge Functions sleep when idle and take a few seconds to wake. fetch has
+       no deadline of its own, so a slow wake left the page sitting on
+       "กำลังโหลด…" indefinitely with nothing for the user to react to. */
+    var REQUEST_TIMEOUT_MS = 20000;
+
     function makeRunner(successHandler, failureHandler) {
       var fixed = {
         withSuccessHandler: function (fn) { return makeRunner(fn, failureHandler); },
@@ -737,15 +742,24 @@
           if (typeof prop !== 'string') return undefined;
           return function () {
             var args = Array.prototype.slice.call(arguments);
+            var controller = typeof AbortController === 'function' ? new AbortController() : null;
+            var timedOut = false;
+            var timer = setTimeout(function () {
+              timedOut = true;
+              if (controller) controller.abort();
+            }, REQUEST_TIMEOUT_MS);
+
             fetch(window.API_BASE, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: prop, args: args })
+              body: JSON.stringify({ action: prop, args: args }),
+              signal: controller ? controller.signal : undefined
             })
               .then(function (r) {
                 return r.json().then(function (data) { return { status: r.status, data: data }; });
               })
               .then(function (res) {
+                clearTimeout(timer);
                 if (res.status >= 400) {
                   if (failureHandler) failureHandler(new Error(res.data && res.data.message || 'request failed'));
                   else console.error(res.data);
@@ -754,8 +768,13 @@
                 if (successHandler) successHandler(res.data);
               })
               .catch(function (err) {
-                if (failureHandler) failureHandler(err);
-                else console.error(err);
+                clearTimeout(timer);
+                var reported = timedOut
+                  ? new Error('เซิร์ฟเวอร์ไม่ตอบสนองภายใน ' + (REQUEST_TIMEOUT_MS / 1000) +
+                      ' วินาที — เซิร์ฟเวอร์อาจกำลังเริ่มทำงานหลังพักตัว กรุณากดลองใหม่อีกครั้ง')
+                  : err;
+                if (failureHandler) failureHandler(reported);
+                else console.error(reported);
               });
           };
         }
