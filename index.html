@@ -741,6 +741,78 @@
        "กำลังโหลด…" indefinitely with nothing for the user to react to. */
     var REQUEST_TIMEOUT_MS = 20000;
 
+    /* ลองใหม่ให้เองเฉพาะคำสั่งที่อ่านอย่างเดียว
+       คำสั่งที่บันทึก ลบ หรือส่งไลน์ ห้ามลองซ้ำเอง เพราะคำขออาจไปถึงเซิร์ฟเวอร์แล้ว
+       แต่ขากลับหลุด ลองซ้ำจะได้รายการซ้ำหรือข้อความไลน์สองรอบ ให้คนกดเองดีกว่า */
+    var RETRYABLE = {
+      getHomeData: 1, getAbsenceTable: 1, previewReport: 1, validateLeaveEntry: 1,
+      getAllLeaveData: 1, searchLeaveRecords: 1, getPersonLeaveDetail: 1,
+      getMissionStats: 1, exportExcelFile: 1, checkPin: 1
+    };
+    var RETRY_DELAY_MS = 1500;
+
+    /* เวลาเกตเวย์ฐานข้อมูลสะดุด ข้อความที่ส่งกลับมาเป็นหน้าเว็บ HTML ทั้งหน้า
+       เอามาแสดงตรง ๆ จะเต็มจอและอ่านไม่ได้ความ */
+    function readableServerError(msg) {
+      var text = String(msg === null || msg === undefined ? '' : msg);
+      if (/<!DOCTYPE html|<html[\s>]|gateway html|schema cache/i.test(text)) {
+        return 'ฐานข้อมูลขัดข้องชั่วคราว ไม่ใช่ข้อมูลที่กรอกผิด กรุณารอสักครู่แล้วกดใหม่อีกครั้ง';
+      }
+      return text.length > 300 ? text.slice(0, 300) + '…' : text;
+    }
+
+    /* 4 ต.ค. 2569 เวลา 11.34 ถึง 11.41 น. ฝั่งผู้ให้บริการสะดุดอยู่เจ็ดนาที
+       หน้าเว็บขึ้นแค่คำว่า Failed to fetch เจ้าหน้าที่จึงได้แต่กดซ้ำโดยไม่รู้ว่าเกิดอะไร
+       ตรงนี้จึงลองใหม่ให้เองหนึ่งครั้งก่อน แล้วค่อยบอกเป็นประโยคที่ตัดสินใจต่อได้ */
+    function callApi(action, args, onSuccess, onFailure, attempt) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timedOut = false;
+      var timer = setTimeout(function () {
+        timedOut = true;
+        if (controller) controller.abort();
+      }, REQUEST_TIMEOUT_MS);
+
+      fetch(window.API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action, args: args }),
+        signal: controller ? controller.signal : undefined
+      })
+        .then(function (r) {
+          return r.json().then(function (data) { return { status: r.status, data: data }; });
+        })
+        .then(function (res) {
+          clearTimeout(timer);
+          if (res.status >= 400) {
+            var raw = (res.data && res.data.message) || 'request failed';
+            if (onFailure) onFailure(new Error(readableServerError(raw)));
+            else console.error(res.data);
+            return;
+          }
+          if (onSuccess) onSuccess(res.data);
+        })
+        .catch(function (err) {
+          clearTimeout(timer);
+          /* ยังไม่หมดเวลาแต่ติดต่อไม่ได้เลย แปลว่าเครือข่ายหรือเซิร์ฟเวอร์สะดุด
+             คำสั่งอ่านอย่างเดียวลองใหม่ได้ ไม่มีผลข้างเคียง */
+          if (!timedOut && attempt === 0 && RETRYABLE[action]) {
+            setTimeout(function () { callApi(action, args, onSuccess, onFailure, 1); }, RETRY_DELAY_MS);
+            return;
+          }
+          var reported;
+          if (timedOut) {
+            reported = new Error('เซิร์ฟเวอร์ไม่ตอบสนองภายใน ' + (REQUEST_TIMEOUT_MS / 1000) +
+              ' วินาที — เซิร์ฟเวอร์อาจกำลังเริ่มทำงานหลังพักตัว กรุณากดลองใหม่อีกครั้ง');
+          } else {
+            reported = new Error('ติดต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสัญญาณอินเทอร์เน็ตก่อน' +
+              ' ถ้าสัญญาณปกติแสดงว่าระบบฝั่งผู้ให้บริการขัดข้องชั่วคราว ซึ่งมักหายเองในไม่กี่นาที' +
+              ' กรุณารอสักครู่แล้วกดใหม่อีกครั้ง ข้อมูลที่กรอกไว้ยังอยู่ในหน้าจอ');
+          }
+          if (onFailure) onFailure(reported);
+          else console.error(reported);
+        });
+    }
+
     function makeRunner(successHandler, failureHandler) {
       var fixed = {
         withSuccessHandler: function (fn) { return makeRunner(fn, failureHandler); },
@@ -751,41 +823,7 @@
           if (prop in target) return target[prop];
           if (typeof prop !== 'string') return undefined;
           return function () {
-            var args = Array.prototype.slice.call(arguments);
-            var controller = typeof AbortController === 'function' ? new AbortController() : null;
-            var timedOut = false;
-            var timer = setTimeout(function () {
-              timedOut = true;
-              if (controller) controller.abort();
-            }, REQUEST_TIMEOUT_MS);
-
-            fetch(window.API_BASE, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: prop, args: args }),
-              signal: controller ? controller.signal : undefined
-            })
-              .then(function (r) {
-                return r.json().then(function (data) { return { status: r.status, data: data }; });
-              })
-              .then(function (res) {
-                clearTimeout(timer);
-                if (res.status >= 400) {
-                  if (failureHandler) failureHandler(new Error(res.data && res.data.message || 'request failed'));
-                  else console.error(res.data);
-                  return;
-                }
-                if (successHandler) successHandler(res.data);
-              })
-              .catch(function (err) {
-                clearTimeout(timer);
-                var reported = timedOut
-                  ? new Error('เซิร์ฟเวอร์ไม่ตอบสนองภายใน ' + (REQUEST_TIMEOUT_MS / 1000) +
-                      ' วินาที — เซิร์ฟเวอร์อาจกำลังเริ่มทำงานหลังพักตัว กรุณากดลองใหม่อีกครั้ง')
-                  : err;
-                if (failureHandler) failureHandler(reported);
-                else console.error(reported);
-              });
+            callApi(prop, Array.prototype.slice.call(arguments), successHandler, failureHandler, 0);
           };
         }
       });
